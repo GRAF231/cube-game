@@ -84,7 +84,7 @@ declare namespace YaGames {
     };
   }
 }
-
-declare var YaGames: {
+declare const YaGames: {
+  init(): Promise<YaGames.YandexGames>;
   init(): Promise<YaGames.YandexGames>;
 };

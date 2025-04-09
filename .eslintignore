@@ -1,0 +1,16 @@
+# Игнорировать сборки и временные файлы
+build/
+dist/
+node_modules/
+coverage/
+
+# Файлы конфигурации
+*.config.js
+.eslintrc.js
+
+# Другие файлы, которые не требуют проверки
+*.svg
+*.min.js
+*.md
+*.css
+*.scss

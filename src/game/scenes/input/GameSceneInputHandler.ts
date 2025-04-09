@@ -29,22 +29,37 @@ export class GameSceneInputHandler {
             const shape = container.getData('shape');
             if (shape) {
                 try {
-                    container.setInteractive(new Phaser.Geom.Rectangle(0, 0, 100, 100), Phaser.Geom.Rectangle.Contains);
+                    container.setInteractive(
+                        new Phaser.Geom.Rectangle(0, 0, 100, 100),
+                        Phaser.Geom.Rectangle.Contains
+                    );
                     this.scene.input.setDraggable(container);
-                    console.log(`Draggable enabled for preview index: ${container.getData('index')}`);
+                    console.log(
+                        `Draggable enabled for preview index: ${container.getData('index')}`
+                    );
                 } catch (error) {
-                    console.error(`Error setting interactive for preview index ${container.getData('index')}:`, error);
+                    console.error(
+                        `Error setting interactive for preview index ${container.getData(
+                            'index'
+                        )}:`,
+                        error
+                    );
                 }
             } else {
-                 if (container.input?.enabled) {
+                if (container.input?.enabled) {
                     this.scene.input.disable(container);
-                    console.log(`Draggable disabled for empty preview index: ${container.getData('index')}`);
-                 }
+                    console.log(
+                        `Draggable disabled for empty preview index: ${container.getData('index')}`
+                    );
+                }
             }
         });
     }
 
-    private onDragStart(pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.Container): void {
+    private onDragStart(
+        pointer: Phaser.Input.Pointer,
+        gameObject: Phaser.GameObjects.Container
+    ): void {
         const index = gameObject.getData('index');
         const shape = gameObject.getData('shape');
         if (index === undefined || shape === null) return;
@@ -56,26 +71,56 @@ export class GameSceneInputHandler {
 
         gameObject.setDepth(100);
 
-        const shadow = this.scene.add.rectangle(gameObject.x, gameObject.y + 5, 100, 100, 0x000000, 0.2)
+        const shadow = this.scene.add
+            .rectangle(gameObject.x, gameObject.y + 5, 100, 100, 0x000000, 0.2)
             .setDepth(99)
             .setOrigin(0.5);
         gameObject.setData('shadow', shadow);
 
-        this.scene.tweens.add({ targets: gameObject, scale: 1.15, y: gameObject.y - 10, duration: 200, ease: 'Back.easeOut' });
-        this.scene.tweens.add({ targets: shadow, alpha: 0.3, scale: 1.1, duration: 200, ease: 'Quad.easeOut' });
+        this.scene.tweens.add({
+            targets: gameObject,
+            scale: 1.15,
+            y: gameObject.y - 10,
+            duration: 200,
+            ease: 'Back.easeOut',
+        });
+        this.scene.tweens.add({
+            targets: shadow,
+            alpha: 0.3,
+            scale: 1.1,
+            duration: 200,
+            ease: 'Quad.easeOut',
+        });
 
-        const gridHighlight = this.scene.add.rectangle(
-            GRID_X + GRID_SIZE * CELL_SIZE / 2, GRID_Y + GRID_SIZE * CELL_SIZE / 2,
-            GRID_SIZE * CELL_SIZE + 10, GRID_SIZE * CELL_SIZE + 10,
-            0xffffff, 0
-        ).setStrokeStyle(5, 0x4cd964, 0).setDepth(50);
+        const gridHighlight = this.scene.add
+            .rectangle(
+                GRID_X + (GRID_SIZE * CELL_SIZE) / 2,
+                GRID_Y + (GRID_SIZE * CELL_SIZE) / 2,
+                GRID_SIZE * CELL_SIZE + 10,
+                GRID_SIZE * CELL_SIZE + 10,
+                0xffffff,
+                0
+            )
+            .setStrokeStyle(5, 0x4cd964, 0)
+            .setDepth(50);
         gameObject.setData('gridHighlight', gridHighlight);
 
-        this.scene.tweens.add({ targets: gridHighlight, strokeAlpha: 0.5, duration: 300, ease: 'Sine.easeOut' });
+        this.scene.tweens.add({
+            targets: gridHighlight,
+            strokeAlpha: 0.5,
+            duration: 300,
+            ease: 'Sine.easeOut',
+        });
     }
 
-    private onDrag(pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.Container, dragX: number, dragY: number): void {
-        if (!this.scene.scene.isActive(this.scene.scene.key) || gameObject !== this.draggingObject) return;
+    private onDrag(
+        pointer: Phaser.Input.Pointer,
+        gameObject: Phaser.GameObjects.Container,
+        dragX: number,
+        dragY: number
+    ): void {
+        if (!this.scene.scene.isActive(this.scene.scene.key) || gameObject !== this.draggingObject)
+            return;
 
         gameObject.x = dragX;
         gameObject.y = dragY;
@@ -102,8 +147,12 @@ export class GameSceneInputHandler {
         }
     }
 
-    private onDragEnd(pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.Container): void {
-        if (!this.scene.scene.isActive(this.scene.scene.key) || gameObject !== this.draggingObject) return;
+    private onDragEnd(
+        pointer: Phaser.Input.Pointer,
+        gameObject: Phaser.GameObjects.Container
+    ): void {
+        if (!this.scene.scene.isActive(this.scene.scene.key) || gameObject !== this.draggingObject)
+            return;
 
         console.log(`Drag End: Index ${gameObject.getData('index')}`);
         this.draggingObject = null;
@@ -111,17 +160,21 @@ export class GameSceneInputHandler {
         const gridHighlight = gameObject.getData('gridHighlight') as Phaser.GameObjects.Rectangle;
         if (gridHighlight) {
             this.scene.tweens.add({
-                targets: gridHighlight, strokeAlpha: 0, duration: 200,
-                onComplete: () => gridHighlight.destroy()
+                targets: gridHighlight,
+                strokeAlpha: 0,
+                duration: 200,
+                onComplete: () => gridHighlight.destroy(),
             });
             gameObject.setData('gridHighlight', null);
         }
 
         const shadow = gameObject.getData('shadow') as Phaser.GameObjects.Rectangle;
         if (shadow) {
-             this.scene.tweens.add({
-                targets: shadow, alpha: 0, duration: 200,
-                onComplete: () => shadow.destroy()
+            this.scene.tweens.add({
+                targets: shadow,
+                alpha: 0,
+                duration: 200,
+                onComplete: () => shadow.destroy(),
             });
             gameObject.setData('shadow', null);
         }
@@ -148,8 +201,10 @@ export class GameSceneInputHandler {
 
     private getGridPositionFromPointer(pointer: Phaser.Input.Pointer): GridPosition | null {
         if (
-            pointer.x >= GRID_X && pointer.x <= GRID_X + GRID_SIZE * CELL_SIZE &&
-            pointer.y >= GRID_Y && pointer.y <= GRID_Y + GRID_SIZE * CELL_SIZE
+            pointer.x >= GRID_X &&
+            pointer.x <= GRID_X + GRID_SIZE * CELL_SIZE &&
+            pointer.y >= GRID_Y &&
+            pointer.y <= GRID_Y + GRID_SIZE * CELL_SIZE
         ) {
             const gridX = Math.floor((pointer.x - GRID_X) / CELL_SIZE);
             const gridY = Math.floor((pointer.y - GRID_Y) / CELL_SIZE);
@@ -162,8 +217,16 @@ export class GameSceneInputHandler {
         const initialX = gameObject.getData('initialX');
         const initialY = gameObject.getData('initialY');
 
-        const flash = this.scene.add.rectangle(gameObject.x, gameObject.y, 110, 110, 0xffffff, 0.6).setOrigin(0.5);
-        this.scene.tweens.add({ targets: flash, alpha: 0, scale: 1.3, duration: 200, onComplete: () => flash.destroy() });
+        const flash = this.scene.add
+            .rectangle(gameObject.x, gameObject.y, 110, 110, 0xffffff, 0.6)
+            .setOrigin(0.5);
+        this.scene.tweens.add({
+            targets: flash,
+            alpha: 0,
+            scale: 1.3,
+            duration: 200,
+            onComplete: () => flash.destroy(),
+        });
 
         this.scene.tweens.add({
             targets: gameObject,
@@ -173,19 +236,19 @@ export class GameSceneInputHandler {
             duration: 350,
             ease: 'Back.easeOut',
             onComplete: () => {
-                 gameObject.setDepth(0);
-            }
+                gameObject.setDepth(0);
+            },
         });
     }
 
-     private createPlacementParticles(x: number, y: number): void {
+    private createPlacementParticles(x: number, y: number): void {
         const emitter = this.scene.add.particles(x, y, 'pixel', {
             speed: { min: 30, max: 100 },
             angle: { min: 0, max: 360 },
             scale: { start: 0.5, end: 0 },
             lifespan: 600,
             quantity: 20,
-            tint: [0xffffff, 0x4cd964]
+            tint: [0xffffff, 0x4cd964],
         });
         emitter.setDepth(200);
 
@@ -200,6 +263,6 @@ export class GameSceneInputHandler {
         this.scene.input.off('drag', this.onDrag, this);
         this.scene.input.off('dragend', this.onDragEnd, this);
         this.draggingObject = null;
-        console.log("GameSceneInputHandler destroyed");
+        console.log('GameSceneInputHandler destroyed');
     }
 }
