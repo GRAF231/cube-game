@@ -48,6 +48,7 @@ export interface GameState {
   availableShapes: (Shape | null)[];
   selectedShape: Shape | null;
   grid: Cell[][];
+  gridBeforeClear?: Cell[][]; // Состояние сетки после размещения фигуры, но до очистки линий
 }
 
 /**

@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { BaseScene } from './BaseScene';
 import { GameManager } from '../GameManager';
 import { Shape, GameEvents, GridPosition } from '../types';
-import { COLORS, GRID_SIZE, CELL_SIZE, GRID_X, GRID_Y } from '../config';
+import { COLORS, GRID_SIZE, CELL_SIZE, GRID_X, GRID_Y, GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { GameSceneUIManager } from './ui/GameSceneUIManager';
 import { GameSceneInputHandler } from './input/GameSceneInputHandler';
 import { GameSceneAnimator } from './animation/GameSceneAnimator';
@@ -17,6 +17,13 @@ export class GameScene extends BaseScene {
     private selectedShapeGraphics!: Phaser.GameObjects.Graphics;
     private selectedShapeIndex: number = -1;
     public yaSDK: YaGames.YandexGames | null = null;
+    
+    // Элементы фона
+    private backgroundStars: Phaser.GameObjects.Sprite[] = [];
+    private movingStars: Phaser.GameObjects.Sprite[] = [];
+    private shootingStars: Phaser.GameObjects.Sprite[] = [];
+    private nebulaEffect!: Phaser.GameObjects.Graphics;
+    private shootingStarTimer!: Phaser.Time.TimerEvent;
 
     constructor() {
         super({ key: 'GameScene' });
@@ -53,6 +60,9 @@ export class GameScene extends BaseScene {
     }
 
     create(): void {
+        // Создаем анимированный фон перед остальными элементами
+        this.createAnimatedBackground();
+        
         this.animator = new GameSceneAnimator(this);
         this.uiManager = new GameSceneUIManager(this, this.animator);
         this.inputHandler = new GameSceneInputHandler(this);
@@ -207,25 +217,30 @@ export class GameScene extends BaseScene {
             return false;
         }
 
-        const gridBeforePlace = this.gameManager.getState().grid.map(row => row.map(cell => ({ ...cell })));
-
+        // Размещаем фигуру - это также сохранит состояние сетки до очистки в this.gameManager.getState().gridBeforeClear
         const placed = this.gameManager.placeShape(position);
 
         if (placed) {
             const placedShape = selectedShape;
             this.selectedShapeIndex = -1;
             this.clearShapeGhost();
-        if (this.animator) {
-            this.animator.animateShapePlacement(position, placedShape, () => {
-                this.triggerClearAnimation(gridBeforePlace);
-                this.updateVisualGrid();
-            });
-        } else {
-            this.triggerClearAnimation(gridBeforePlace);
+            
+            // Сначала обновляем визуальное представление сетки, чтобы эффекты объема появились сразу
             this.updateVisualGrid();
-        }
-
-
+            
+            // Затем анимируем размещение фигуры и очистку линий
+            if (this.animator) {
+                this.animator.animateShapePlacement(position, placedShape, () => {
+                    // Используем gridBeforeClear из GameManager для анимации очистки
+                    this.triggerClearAnimation();
+                    
+                    // Обновляем сетку еще раз после очистки линий
+                    this.updateVisualGrid();
+                });
+            } else {
+                this.triggerClearAnimation();
+                // Сетка уже была обновлена выше
+            }
         } else {
             console.log(`GameScene: Failed to place shape at ${position.x}, ${position.y}`);
         }
@@ -233,11 +248,18 @@ export class GameScene extends BaseScene {
     }
 
     /**
-     * Проверяет и запускает анимацию очистки линий, используя состояние сетки *до* очистки.
+     * Проверяет и запускает анимацию очистки линий, используя состояние сетки до очистки.
      */
-    private triggerClearAnimation(gridBeforeClear: { filled: boolean, color: string }[][]): void {
+    private triggerClearAnimation(): void {
         if (!this.uiManager || !this.uiManager.gridComponent) {
             console.error("UIManager или GridComponent не инициализирован при вызове triggerClearAnimation");
+            return;
+        }
+
+        // Получаем сохраненное состояние сетки до очистки
+        const gridBeforeClear = this.gameManager.getState().gridBeforeClear;
+        if (!gridBeforeClear) {
+            console.error("gridBeforeClear не найден в состоянии GameManager");
             return;
         }
 
@@ -246,6 +268,7 @@ export class GameScene extends BaseScene {
         const clearedRows: number[] = [];
         const clearedCols: number[] = [];
 
+        // Находим очищенные строки
         for (let y = 0; y < GRID_SIZE; y++) {
             const wasFilled = gridBeforeClear[y].every(cell => cell.filled);
             const isFilledNow = gridAfterClear[y].every(cell => cell.filled);
@@ -253,6 +276,8 @@ export class GameScene extends BaseScene {
                 clearedRows.push(y);
             }
         }
+
+        // Находим очищенные столбцы
         for (let x = 0; x < GRID_SIZE; x++) {
             const wasFilled = gridBeforeClear.every(row => row[x].filled);
             const isFilledNow = gridAfterClear.every(row => row[x].filled);
@@ -261,6 +286,9 @@ export class GameScene extends BaseScene {
             }
         }
 
+        console.log(`Очищено строк: ${clearedRows.length}, столбцов: ${clearedCols.length}`);
+
+        // Запускаем анимацию для всех очищенных ячеек
         if (clearedRows.length > 0 || clearedCols.length > 0) {
             for (let y = 0; y < GRID_SIZE; y++) {
                 for (let x = 0; x < GRID_SIZE; x++) {
@@ -359,11 +387,241 @@ export class GameScene extends BaseScene {
     }
 
     update(time: number, delta: number): void {
-        // Логика обновления сцены
+        // Обновление анимаций фона
+        this.updateBackgroundEffects(time, delta);
     }
-
+    
+    /**
+     * Создает расширенный анимированный фон с различными эффектами
+     */
+    private createAnimatedBackground(): void {
+        // Создаем базовый фон - темный градиент
+        const backgroundGradient = this.add.graphics();
+        const gradientRect = new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        backgroundGradient.fillGradientStyle(
+            0x0a0a1e, 0x0a0a1e,
+            0x1a1a3e, 0x1a1a3e,
+            1
+        );
+        backgroundGradient.fillRectShape(gradientRect);
+        
+        // Создаем эффект туманности/свечения
+        this.nebulaEffect = this.add.graphics();
+        this.createNebulaEffect();
+        
+        // Создаем статичные звезды с пульсацией
+        this.createStaticStars();
+        
+        // Создаем медленно движущиеся звезды фона
+        this.createMovingStars();
+        
+        // Настраиваем таймер для падающих звезд
+        this.shootingStarTimer = this.time.addEvent({
+            delay: 4000,
+            callback: this.createShootingStar,
+            callbackScope: this,
+            loop: true
+        });
+    }
+    
+    /**
+     * Создает эффект туманности/облаков в космосе
+     */
+    private createNebulaEffect(): void {
+        const nebulaCenters = [
+            { x: GAME_WIDTH * 0.2, y: GAME_HEIGHT * 0.3, radius: 150, color: 0x3d5a80, alpha: 0.05 },
+            { x: GAME_WIDTH * 0.8, y: GAME_HEIGHT * 0.7, radius: 180, color: 0x457b9d, alpha: 0.05 },
+            { x: GAME_WIDTH * 0.6, y: GAME_HEIGHT * 0.2, radius: 120, color: 0xa7489b, alpha: 0.05 }
+        ];
+        
+        nebulaCenters.forEach(nebula => {
+            this.nebulaEffect.fillStyle(nebula.color, nebula.alpha);
+            for (let i = 0; i < 5; i++) {
+                const currentRadius = nebula.radius - i * 20;
+                if (currentRadius > 0) {
+                    this.nebulaEffect.fillCircle(nebula.x, nebula.y, currentRadius);
+                }
+            }
+        });
+    }
+    
+    /**
+     * Создает статичные звезды с эффектом пульсации
+     */
+    private createStaticStars(): void {
+        const starCount = 70;
+        for (let i = 0; i < starCount; i++) {
+            const x = Phaser.Math.Between(0, GAME_WIDTH);
+            const y = Phaser.Math.Between(0, GAME_HEIGHT);
+            const scale = Phaser.Math.FloatBetween(0.2, 0.6);
+            const alpha = Phaser.Math.FloatBetween(0.4, 1);
+            
+            // Используем частицу в качестве звезды
+            const star = this.add.sprite(x, y, 'pixel');
+            star.setScale(scale * 2);
+            star.setTint(0xffffff);
+            star.setAlpha(alpha);
+            
+            // Случайный выбор цвета для некоторых звезд
+            if (Phaser.Math.Between(0, 100) > 70) {
+                const colors = [0xffdd99, 0x99ccff, 0xffcccc];
+                star.setTint(colors[Phaser.Math.Between(0, colors.length - 1)]);
+            }
+            
+            // Добавляем пульсацию с разными параметрами для разнообразия
+            const pulseScale = Phaser.Math.FloatBetween(0.8, 1.2);
+            const pulseDuration = Phaser.Math.Between(1500, 4000);
+            
+            this.tweens.add({
+                targets: star,
+                scale: scale * pulseScale,
+                alpha: alpha - Phaser.Math.FloatBetween(0.1, 0.3),
+                duration: pulseDuration,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut',
+                delay: Phaser.Math.Between(0, 1000)
+            });
+            
+            this.backgroundStars.push(star);
+        }
+    }
+    /**
+     * Создает медленно движущиеся звезды фона
+     */
+    private createMovingStars(): void {
+        // Создаем звезды, которые медленно движутся сверху вниз
+        for (let i = 0; i < 40; i++) {
+            this.createMovingStar();
+        }
+    }
+    
+    /**
+     * Создает одну движущуюся звезду
+     */
+    private createMovingStar(): void {
+        const x = Phaser.Math.Between(0, GAME_WIDTH);
+        const y = Phaser.Math.Between(-50, GAME_HEIGHT);
+        const scale = Phaser.Math.FloatBetween(0.1, 0.3);
+        const alpha = Phaser.Math.FloatBetween(0.3, 0.7);
+        const speed = Phaser.Math.FloatBetween(5, 20);
+        
+        // Создаем звезду из пиксельной текстуры
+        const star = this.add.sprite(x, y, 'pixel');
+        star.setScale(scale);
+        star.setAlpha(alpha);
+        
+        // Выбираем случайный цвет
+        const colors = [0xffffff, 0xccccff, 0xffcccc];
+        star.setTint(colors[Phaser.Math.Between(0, colors.length - 1)]);
+        
+        // Добавляем в массив для отслеживания
+        this.movingStars.push(star);
+        
+        // Создаем движение звезды
+        this.tweens.add({
+            targets: star,
+            y: GAME_HEIGHT + 50,
+            duration: speed * 1000,
+            ease: 'Linear',
+            onComplete: () => {
+                // Удаляем старую звезду
+                star.destroy();
+                const index = this.movingStars.indexOf(star);
+                if (index > -1) this.movingStars.splice(index, 1);
+                
+                // Создаем новую на замену
+                this.createMovingStar();
+            }
+        });
+    }
+    
+    /**
+     * Создает падающую звезду (метеор)
+     */
+    private createShootingStar(): void {
+        // Генерируем случайную начальную позицию для падающей звезды
+        const startX = Phaser.Math.Between(100, GAME_WIDTH);
+        const startY = Phaser.Math.Between(0, GAME_HEIGHT * 0.3);
+        
+        // Создаем "голову" метеора
+        const star = this.add.sprite(startX, startY, 'pixel');
+        star.setScale(0.5);
+        star.setAlpha(1);
+        star.setTint(0xffffff);
+        star.setBlendMode(Phaser.BlendModes.ADD);
+        
+        // Добавляем в массив для отслеживания
+        this.shootingStars.push(star);
+        
+        // Создаем "хвост" метеора (5 частиц сзади)
+        const trailParts: Phaser.GameObjects.Sprite[] = [];
+        for (let i = 0; i < 5; i++) {
+            const trailPart = this.add.sprite(startX, startY, 'pixel');
+            trailPart.setScale(0.3 - i * 0.05);
+            trailPart.setAlpha(0.7 - i * 0.1);
+            trailPart.setTint(0xffffff);
+            trailPart.setBlendMode(Phaser.BlendModes.ADD);
+            trailParts.push(trailPart);
+        }
+        
+        // Рассчитываем конечную позицию (диагональ вниз-влево)
+        const endX = startX - Phaser.Math.Between(200, 400);
+        const endY = startY + Phaser.Math.Between(200, 400);
+        
+        // Создаем анимацию движения метеора
+        this.tweens.add({
+            targets: star,
+            x: endX,
+            y: endY,
+            alpha: 0,
+            scale: 0.1,
+            duration: 1000,
+            ease: 'Linear',
+            onUpdate: () => {
+                // Обновляем позиции частиц хвоста с задержкой
+                for (let i = 0; i < trailParts.length; i++) {
+                    const delay = (i + 1) * 2; // задержка увеличивается для каждой части
+                    const prevX = star.x + (i + 1) * (startX - star.x) / (delay * 5);
+                    const prevY = star.y + (i + 1) * (startY - star.y) / (delay * 5);
+                    trailParts[i].setPosition(prevX, prevY);
+                }
+            },
+            onComplete: () => {
+                // Удаляем все объекты
+                star.destroy();
+                trailParts.forEach(part => part.destroy());
+                
+                const index = this.shootingStars.indexOf(star);
+                if (index > -1) this.shootingStars.splice(index, 1);
+            }
+        });
+    }
+    
+    /**
+     * Обновляет эффекты фона
+     */
+    private updateBackgroundEffects(time: number, delta: number): void {
+        // Динамически изменяем туманность со временем
+        if (time % 5000 < 20) { // Обновляем каждые 5 секунд
+            this.nebulaEffect.clear();
+            this.createNebulaEffect();
+        }
+    }
     shutdown(): void {
         console.log("Shutting down GameScene...");
+        // Очищаем таймер падающих звезд
+        this.shootingStarTimer?.remove();
+        
+        // Очищаем все объекты фона
+        this.backgroundStars.forEach(star => star.destroy());
+        this.movingStars.forEach(star => star.destroy());
+        this.shootingStars.forEach(star => star.destroy());
+        this.backgroundStars = [];
+        this.movingStars = [];
+        this.shootingStars = [];
+        
+        // Уничтожаем остальные компоненты
         this.uiManager?.destroy();
         this.inputHandler?.destroy();
         this.animator?.destroy();

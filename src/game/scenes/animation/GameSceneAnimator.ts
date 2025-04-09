@@ -97,24 +97,55 @@ export class GameSceneAnimator {
              console.log("Текстура 'pixel' создана.");
         }
 
+        // Размеры ячейки превью
+        const previewWidth = 110;
+        const previewHeight = 110;
+        
+        // Рассчитываем центр ячейки превью
+        const centerX = container.x + previewWidth / 2;
+        const centerY = container.y + previewHeight / 2;
+        
+        // Создаем эффект частиц в центре ячейки
         const particleColor = Phaser.Display.Color.HexStringToColor(colorHex).color;
         const emitter = this.scene.add.particles(
-            container.x + 50, container.y + 50, 'pixel', {
-            speed: { min: 30, max: 100 },
+            centerX, centerY, 'pixel', {
+            speed: { min: 40, max: 120 }, // Увеличиваем скорость для более выраженного эффекта
             angle: { min: 0, max: 360 },
-            scale: { start: 0.8, end: 0 },
-            lifespan: 800,
-            quantity: 1,
-            frequency: 20,
-            maxParticles: 20,
-            tint: [0xffffff, particleColor],
+            scale: { start: 1, end: 0 }, // Увеличиваем начальный размер
+            lifespan: 1000,
+            quantity: 2, // Увеличиваем количество частиц
+            frequency: 15,
+            maxParticles: 30,
+            tint: [0xffffff, particleColor, 0xffffff],
+            blendMode: Phaser.BlendModes.ADD, // Добавляем режим смешивания для более яркого эффекта
             emitting: true
         });
         emitter.setDepth(container.depth + 1);
+        
+        // Создаем вторую систему частиц для более яркого эффекта
+        const glowEmitter = this.scene.add.particles(
+            centerX, centerY, 'pixel', {
+            speed: { min: 20, max: 60 },
+            angle: { min: 0, max: 360 },
+            scale: { start: 1.5, end: 0 },
+            lifespan: 800,
+            quantity: 1,
+            frequency: 30,
+            maxParticles: 15,
+            tint: [particleColor],
+            alpha: { start: 0.6, end: 0 },
+            blendMode: Phaser.BlendModes.ADD,
+            emitting: true
+        });
+        glowEmitter.setDepth(container.depth + 2);
 
         this.scene.time.delayedCall(400, () => {
             emitter.stop();
-            this.scene.time.delayedCall(800, () => emitter.destroy());
+            glowEmitter.stop();
+            this.scene.time.delayedCall(800, () => {
+                emitter.destroy();
+                glowEmitter.destroy();
+            });
         });
     }
 
@@ -122,16 +153,26 @@ export class GameSceneAnimator {
      * Анимирует появление фигуры в области предпросмотра.
      */
     public animatePreviewAppearance(container: Phaser.GameObjects.Container, dragGroup: Phaser.GameObjects.Container, shape: Shape): void {
+        // Устанавливаем начальные свойства группы для анимации
         dragGroup.setAlpha(0);
         dragGroup.setScale(0.5);
-
-        const glow = this.scene.add.rectangle(50, 50, 85, 85, Phaser.Display.Color.HexStringToColor(shape.color).color, 0.7);
+        
+        // Создаем эффект свечения в центре ячейки превью
+        const glow = this.scene.add.rectangle(
+            0, // позиция X уже центрирована, т.к. dragGroup в центре ячейки
+            0, // позиция Y уже центрирована
+            95, // немного увеличиваем размер свечения
+            95,
+            Phaser.Display.Color.HexStringToColor(shape.color).color,
+            0.7
+        );
         glow.setAlpha(0);
         glow.setBlendMode(Phaser.BlendModes.ADD);
-        container.add(glow);
-
+        dragGroup.add(glow); // Добавляем к dragGroup вместо container
+        
         const index = container.getData('index') as number;
-
+        
+        // Анимация свечения
         this.scene.tweens.add({
             targets: glow,
             alpha: { from: 0, to: 0.7 },
@@ -140,21 +181,37 @@ export class GameSceneAnimator {
             duration: 300,
             delay: index * 150,
             onComplete: () => {
-                this.scene.tweens.add({ targets: glow, alpha: 0, scale: 1.2, ease: 'Sine.easeIn', duration: 400, onComplete: () => glow.destroy() });
+                this.scene.tweens.add({
+                    targets: glow,
+                    alpha: 0,
+                    scale: 1.2,
+                    ease: 'Sine.easeIn',
+                    duration: 400,
+                    onComplete: () => glow.destroy()
+                });
+                // Создаем частицы появления в центре ячейки
                 this.createAppearanceParticles(container, shape.color);
             }
         });
-
+        
+        // Анимация появления фигуры без смещения по вертикали
         this.scene.tweens.add({
             targets: dragGroup,
-            alpha: 1,
-            scale: { from: 0.5, to: 1 },
-            y: { from: -10, to: 0 },
+            alpha: { from: 0, to: 1 },
+            scale: { from: 0.8, to: 1 },
             ease: 'Back.easeOut',
-            duration: 600,
+            duration: 500,
             delay: index * 150,
             onComplete: () => {
-                this.scene.tweens.add({ targets: dragGroup, scaleX: { from: 1, to: 1.05, yoyo: true }, scaleY: { from: 1, to: 0.95, yoyo: true }, ease: 'Sine.easeInOut', duration: 300, repeat: 1 });
+                // Добавляем небольшую "пульсирующую" анимацию после появления
+                this.scene.tweens.add({
+                    targets: dragGroup,
+                    scaleX: { from: 1, to: 1.05, yoyo: true },
+                    scaleY: { from: 1, to: 0.95, yoyo: true },
+                    ease: 'Sine.easeInOut',
+                    duration: 300,
+                    repeat: 1
+                });
             }
         });
     }
@@ -175,12 +232,11 @@ export class GameSceneAnimator {
 
                 scene.tweens.add({
                     targets: effects.getChildren().filter((obj: any) => !(obj instanceof Phaser.GameObjects.Particles.ParticleEmitter)),
-                    alpha: 0, duration: 150,
+                    alpha: 0, duration: 250,
                     onComplete: () => effects.clear(true, true)
                 });
             }
         }
-
 
         const effectsGroup = this.scene.add.group();
         const blockPositions = placedShape.blocks.map(b => ({ x: position.x + b.x, y: position.y + b.y }))
@@ -189,55 +245,157 @@ export class GameSceneAnimator {
         let animationsComplete = 0;
         const totalAnimations = blockPositions.length;
 
+        // Вычисляем центр и размер фигуры
         if (blockPositions.length > 0) {
             const minX = Math.min(...blockPositions.map(p => p.x));
             const minY = Math.min(...blockPositions.map(p => p.y));
             const maxX = Math.max(...blockPositions.map(p => p.x));
             const maxY = Math.max(...blockPositions.map(p => p.y));
+            
+            // Координаты центра фигуры
+            const centerX = GRID_X + ((minX + maxX) / 2 + 0.5) * CELL_SIZE;
+            const centerY = GRID_Y + ((minY + maxY) / 2 + 0.5) * CELL_SIZE;
+            const width = (maxX - minX + 1) * CELL_SIZE;
+            const height = (maxY - minY + 1) * CELL_SIZE;
+            
+            // Создаем эффект внешнего свечения
             const glow = this.scene.add.rectangle(
-                GRID_X + ((minX + maxX) / 2 + 0.5) * CELL_SIZE, GRID_Y + ((minY + maxY) / 2 + 0.5) * CELL_SIZE,
-                (maxX - minX + 1) * CELL_SIZE + 12, (maxY - minY + 1) * CELL_SIZE + 12,
+                centerX, centerY,
+                width + 12, height + 12,
                 0xffffff, 0.2
             );
-            glow.setStrokeStyle(10, Phaser.Display.Color.HexStringToColor(placedShape.color).color, 0.8);
+            glow.setStrokeStyle(8, Phaser.Display.Color.HexStringToColor(placedShape.color).color, 0.6);
             effectsGroup.add(glow);
-            this.scene.tweens.add({ targets: glow, scaleX: 1.2, scaleY: 1.2, alpha: 0, duration: 250, ease: 'Sine.easeOut' });
+            
+            // Анимация для свечения
+            this.scene.tweens.add({
+                targets: glow,
+                scaleX: 1.2,
+                scaleY: 1.2,
+                alpha: 0,
+                duration: 350,
+                ease: 'Sine.easeOut'
+            });
+            
+            // Создаем эффект пульсации в центре фигуры
+            const pulseBurst = this.scene.add.circle(
+                centerX, centerY,
+                Math.max(width, height) / 2,
+                Phaser.Display.Color.HexStringToColor(placedShape.color).color,
+                0.3
+            );
+            pulseBurst.setBlendMode(Phaser.BlendModes.SCREEN);
+            effectsGroup.add(pulseBurst);
+            
+            this.scene.tweens.add({
+                targets: pulseBurst,
+                radius: Math.max(width, height) * 1.5,
+                alpha: 0,
+                duration: 400,
+                ease: 'Quad.easeOut',
+                onComplete: () => pulseBurst.destroy()
+            });
         }
 
-        for (const block of placedShape.blocks) {
-            const x = position.x + block.x;
-            const y = position.y + block.y;
-            if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
-                const animBlock = this.scene.add.rectangle(
-                    GRID_X + x * CELL_SIZE + CELL_SIZE / 2, GRID_Y + y * CELL_SIZE + CELL_SIZE / 2,
-                    CELL_SIZE - 4, CELL_SIZE - 4,
-                    Phaser.Display.Color.HexStringToColor(placedShape.color).color, 1
-                );
-                animBlock.setStrokeStyle(5, 0xffffff, 0.9);
-                effectsGroup.add(animBlock);
-
-                if (this.scene.textures.exists('pixel')) {
-                    const particles = this.scene.add.particles(
-                        GRID_X + x * CELL_SIZE + CELL_SIZE / 2, GRID_Y + y * CELL_SIZE + CELL_SIZE / 2, 'pixel', {
-                        lifespan: 300, scale: { start: 0.7, end: 0 }, quantity: 1, frequency: 40,
-                        speed: { min: 30, max: 80 }, angle: { min: 0, max: 360 }, alpha: { start: 0.7, end: 0 },
-                        tint: [0xffffff, Phaser.Display.Color.HexStringToColor(placedShape.color).color], emitting: true
-                    });
-                    particles.setDepth(100);
-                    effectsGroup.add(particles);
+        // Анимируем появление каждого блока с волновым эффектом
+        const shapeColor = Phaser.Display.Color.HexStringToColor(placedShape.color).color;
+        
+        blockPositions.forEach((blockPos, index) => {
+            const x = blockPos.x;
+            const y = blockPos.y;
+            
+            // Добавляем задержку для эффекта волны (блоки появляются последовательно)
+            const delay = index * 40; // Задержка для каждого следующего блока
+            
+            const gridX = GRID_X + x * CELL_SIZE + CELL_SIZE / 2;
+            const gridY = GRID_Y + y * CELL_SIZE + CELL_SIZE / 2;
+            
+            // Основной блок
+            const animBlock = this.scene.add.rectangle(
+                gridX, gridY,
+                CELL_SIZE - 4, CELL_SIZE - 4,
+                shapeColor, 1
+            );
+            animBlock.setStrokeStyle(3, 0xffffff, 0.7);
+            animBlock.setScale(0);
+            animBlock.setAlpha(0);
+            effectsGroup.add(animBlock);
+            
+            // Внутреннее свечение блока
+            const innerGlow = this.scene.add.rectangle(
+                gridX, gridY,
+                CELL_SIZE * 0.7, CELL_SIZE * 0.7,
+                0xffffff, 0.3
+            );
+            innerGlow.setScale(0);
+            innerGlow.setAlpha(0);
+            effectsGroup.add(innerGlow);
+            
+            // Система частиц для каждого блока
+            if (this.scene.textures.exists('pixel')) {
+                const particles = this.scene.add.particles(
+                    gridX, gridY, 'pixel', {
+                    lifespan: 400,
+                    scale: { start: 0.8, end: 0 },
+                    quantity: 1,
+                    frequency: 30,
+                    speed: { min: 40, max: 100 },
+                    angle: { min: 0, max: 360 },
+                    alpha: { start: 0.6, end: 0 },
+                    tint: [0xffffff, shapeColor],
+                    blendMode: Phaser.BlendModes.SCREEN,
+                    emitting: false
+                });
+                particles.setDepth(100);
+                effectsGroup.add(particles);
+                
+                // Запускаем эмиттер с задержкой
+                this.scene.time.delayedCall(delay, () => {
+                    particles.start();
                     this.scene.time.delayedCall(180, () => particles.stop());
-                }
-
-                this.scene.tweens.add({
-                    targets: animBlock,
-                    scaleX: [0.5, 1.2, 1], scaleY: [0.5, 1.2, 1], alpha: [0.8, 1],
-                    duration: 200, ease: 'Back.easeOut',
-                    onComplete: () => blockAnimateComplete(this.scene, effectsGroup),
                 });
             }
-        }
+            
+            // Анимация появления блока
+            this.scene.time.delayedCall(delay, () => {
+                // Эффект "взрыва" перед появлением блока
+                const burst = this.scene.add.circle(gridX, gridY, CELL_SIZE / 2, 0xffffff, 0.7);
+                burst.setBlendMode(Phaser.BlendModes.SCREEN);
+                effectsGroup.add(burst);
+                
+                this.scene.tweens.add({
+                    targets: burst,
+                    radius: CELL_SIZE * 1.5,
+                    alpha: 0,
+                    duration: 200,
+                    ease: 'Quad.easeOut',
+                    onComplete: () => burst.destroy()
+                });
+                
+                // Анимация блока
+                this.scene.tweens.add({
+                    targets: [animBlock, innerGlow],
+                    scale: { from: 0, to: 1 },
+                    alpha: { from: 0, to: 1 },
+                    ease: 'Back.easeOut',
+                    duration: 300,
+                    onComplete: () => {
+                        // Пульсация после появления
+                        this.scene.tweens.add({
+                            targets: innerGlow,
+                            alpha: 0,
+                            duration: 300,
+                            onComplete: () => innerGlow.destroy()
+                        });
+                        
+                        // Сообщить о завершении анимации
+                        blockAnimateComplete(this.scene, effectsGroup);
+                    }
+                });
+            });
+        });
 
-         if (totalAnimations === 0) {
+        if (totalAnimations === 0) {
             onComplete?.();
             effectsGroup.clear(true, true);
         }

@@ -89,6 +89,7 @@ export class GameManager {
       return false;
     }
 
+    // Размещаем фигуру на доске
     for (const block of selectedShape.blocks) {
       const x = position.x + block.x;
       const y = position.y + block.y;
@@ -98,6 +99,13 @@ export class GameManager {
         color: selectedShape.color
       };
     }
+
+    // Создаем копию сетки с размещенной фигурой, но до очистки линий
+    // Эту копию мы будем использовать для анимации очистки
+    const gridBeforeClear = JSON.parse(JSON.stringify(grid));
+    
+    // Сохраняем ссылку на копию в объекте state для доступа из других методов
+    this.state.gridBeforeClear = gridBeforeClear;
 
     const clearResult = this.checkAndClearLines();
     

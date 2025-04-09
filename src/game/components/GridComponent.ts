@@ -19,19 +19,59 @@ export class GridComponent {
    * Инициализирует игровую сетку
    */
   private createGrid(): void {
-    this.graphics.lineStyle(1.5, Phaser.Display.Color.HexStringToColor(COLORS.gridLines).color, 0.7);
+    // Основные линии сетки с неоновым эффектом
+    const gridColor = Phaser.Display.Color.HexStringToColor(COLORS.gridLines).color;
+    this.graphics.lineStyle(2, gridColor, 0.8);
 
+    // Рисуем вертикальные линии
     for (let x = 0; x <= GRID_SIZE; x++) {
       this.graphics.moveTo(GRID_X + x * CELL_SIZE, GRID_Y);
       this.graphics.lineTo(GRID_X + x * CELL_SIZE, GRID_Y + GRID_SIZE * CELL_SIZE);
     }
 
+    // Рисуем горизонтальные линии
     for (let y = 0; y <= GRID_SIZE; y++) {
       this.graphics.moveTo(GRID_X, GRID_Y + y * CELL_SIZE);
       this.graphics.lineTo(GRID_X + GRID_SIZE * CELL_SIZE, GRID_Y + y * CELL_SIZE);
     }
 
     this.graphics.strokePath();
+
+    // Создаем свечение линий (внутренний слой)
+    const innerGlow = this.scene.add.graphics();
+    innerGlow.lineStyle(4, gridColor, 0.2);
+    
+    for (let x = 0; x <= GRID_SIZE; x++) {
+      innerGlow.moveTo(GRID_X + x * CELL_SIZE, GRID_Y);
+      innerGlow.lineTo(GRID_X + x * CELL_SIZE, GRID_Y + GRID_SIZE * CELL_SIZE);
+    }
+    
+    for (let y = 0; y <= GRID_SIZE; y++) {
+      innerGlow.moveTo(GRID_X, GRID_Y + y * CELL_SIZE);
+      innerGlow.lineTo(GRID_X + GRID_SIZE * CELL_SIZE, GRID_Y + y * CELL_SIZE);
+    }
+    
+    innerGlow.strokePath();
+    
+    // Добавляем внешнее свечение вокруг сетки
+    const glowGraphics = this.scene.add.graphics();
+    glowGraphics.lineStyle(8, gridColor, 0.15);
+    glowGraphics.strokeRect(
+      GRID_X - 4,
+      GRID_Y - 4,
+      GRID_SIZE * CELL_SIZE + 8,
+      GRID_SIZE * CELL_SIZE + 8
+    );
+    
+    // Добавляем анимацию пульсации для внешнего свечения
+    this.scene.tweens.add({
+      targets: glowGraphics,
+      alpha: { from: 0.15, to: 0.4 },
+      duration: 1500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
 
     for (let y = 0; y < GRID_SIZE; y++) {
       this.blocks[y] = [];
@@ -63,32 +103,75 @@ export class GridComponent {
         if (cell.filled) {
           const color = Phaser.Display.Color.HexStringToColor(cell.color).color;
           block.setFillStyle(color);
-
+          
+          // Очищаем существующие эффекты, если они есть
           if (block.data && block.data.has('effects')) {
             const effects = block.data.get('effects');
             effects.forEach((effect: Phaser.GameObjects.GameObject) => effect.destroy());
           }
           
+          // Создаем эффекты для блока с умеренным свечением
+          const effects: Phaser.GameObjects.GameObject[] = [];
+          
+          // 1. Более заметное свечение вокруг блока
+          const glow = this.scene.add.rectangle(
+            block.x,
+            block.y,
+            block.width + 10, // Увеличиваем размер свечения
+            block.height + 10,
+            color,
+            0.25 // Увеличиваем непрозрачность для более заметного эффекта
+          ).setDepth(block.depth - 1);
+          effects.push(glow);
+          
+          // 2. Более яркий блик сверху для эффекта объема
           const highlight = this.scene.add.rectangle(
             block.x,
-            block.y - block.height * 0.2,
-            block.width * 0.7,
-            block.height * 0.4,
+            block.y - block.height * 0.22,
+            block.width * 0.85, // Увеличиваем ширину блика
+            block.height * 0.3, // Увеличиваем высоту блика
             0xffffff,
-            0.3
+            0.45 // Увеличиваем непрозрачность
           );
+          highlight.setDepth(block.depth + 1); // Устанавливаем глубину над блоком
+          effects.push(highlight);
           
+          // 3. Более заметная тень снизу для эффекта объема
           const shadow = this.scene.add.rectangle(
             block.x,
-            block.y + block.height * 0.2,
+            block.y + block.height * 0.22,
             block.width * 0.9,
-            block.height * 0.4,
+            block.height * 0.3,
             0x000000,
-            0.2
+            0.3 // Увеличиваем непрозрачность
           );
+          shadow.setDepth(block.depth + 1); // Устанавливаем глубину над блоком
+          effects.push(shadow);
+          
+          // 4. Более заметный внутренний блик (для всех блоков)
+          const innerGlow = this.scene.add.rectangle(
+            block.x,
+            block.y,
+            block.width * 0.5,
+            block.height * 0.5,
+            0xffffff,
+            0.15 // Увеличиваем непрозрачность
+          );
+          innerGlow.setDepth(block.depth + 1); // Устанавливаем глубину над блоком
+          effects.push(innerGlow);
+          
+          // 5. Добавляем пульсацию для всех блоков
+          this.scene.tweens.add({
+            targets: glow,
+            alpha: { from: 0.25, to: 0.4 }, // Увеличиваем диапазон для более заметной пульсации
+            duration: 1500 + Math.random() * 1000, // Более быстрая пульсация
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+          });
           
           if (!block.data) block.setDataEnabled();
-          block.data.set('effects', [highlight, shadow]);
+          block.data.set('effects', effects);
         } else {
           block.setFillStyle(0x000000, 0);
           if (block.data && block.data.has('effects')) {
@@ -158,6 +241,10 @@ export class GridComponent {
         );
         glow.setDepth(block.depth - 1);
         
+        // Помечаем эффект как эффект подсветки
+        if (!glow.data) glow.setDataEnabled();
+        glow.data.set('isHighlightEffect', true);
+        
         if (!block.data.has('effects')) block.data.set('effects', []);
         const effects = block.data.get('effects');
         effects.push(glow);
@@ -194,6 +281,10 @@ export class GridComponent {
         );
         glow.setDepth(block.depth - 1);
         
+        // Помечаем эффект как эффект подсветки
+        if (!glow.data) glow.setDataEnabled();
+        glow.data.set('isHighlightEffect', true);
+        
         if (!block.data.has('effects')) block.data.set('effects', []);
         const effects = block.data.get('effects');
         effects.push(glow);
@@ -219,13 +310,134 @@ export class GridComponent {
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
         const block = this.blocks[y][x];
-        this.scene.tweens.killTweensOf(block);
-        block.setStrokeStyle(0);
-        if (block.data && block.data.has('highlighted')) {
-          block.data.remove('highlighted');
+        block.setStrokeStyle(0); // Убираем обводку
+        block.setScale(1, 1); // Сбрасываем масштаб блока к исходному
+        this.scene.tweens.killTweensOf(block); // Останавливаем анимации блока
+        
+        if (block.data) {
+          // Удаляем только эффекты подсветки, сохраняя эффекты объема
+          if (block.data.has('effects')) {
+            const effects = block.data.get('effects');
+            // Создаем новый массив, куда будем сохранять только эффекты объема
+            const remainingEffects: Phaser.GameObjects.GameObject[] = [];
+            
+            effects.forEach((effect: Phaser.GameObjects.GameObject) => {
+              if (effect.data && effect.data.has('isHighlightEffect')) {
+                // Это эффект подсветки - удаляем его
+                this.scene.tweens.killTweensOf(effect);
+                effect.destroy();
+              } else {
+                // Это эффект объема - сохраняем его
+                remainingEffects.push(effect);
+              }
+            });
+            
+            // Обновляем массив эффектов только с оставшимися эффектами объема
+            block.data.set('effects', remainingEffects);
+          }
+          
+          // Удаляем флаг подсветки
+          if (block.data.has('highlighted')) {
+            block.data.remove('highlighted');
+          }
         }
       }
     }
+  }
+  /**
+   * Анимирует очистку линии (ряда или столбца)
+   */
+  public animateLineClear(coords: number[], isRow: boolean): void {
+    // Создаем группу эффектов для линии
+    const lineEffects = this.scene.add.group();
+    
+    // Задержка для каждого следующего блока (эффект волны)
+    const delayPerBlock = 50;
+    
+    // Рассчитываем координаты начала и конца линии
+    const startX = isRow ? GRID_X : GRID_X + coords[0] * CELL_SIZE;
+    const startY = isRow ? GRID_Y + coords[0] * CELL_SIZE : GRID_Y;
+    const endX = isRow ? GRID_X + GRID_SIZE * CELL_SIZE : GRID_X + coords[0] * CELL_SIZE + CELL_SIZE;
+    const endY = isRow ? GRID_Y + coords[0] * CELL_SIZE + CELL_SIZE : GRID_Y + GRID_SIZE * CELL_SIZE;
+    
+    // Создаем линию для подсветки
+    const lineColor = isRow ? 0xf9a826 : 0x457b9d; // Разные цвета для рядов и столбцов
+    const highlightLine = this.scene.add.line(
+      0, 0, startX, startY, endX, endY, lineColor, 0
+    );
+    highlightLine.setLineWidth(CELL_SIZE * 0.8);
+    highlightLine.setAlpha(0);
+    
+    // Анимация появления линии
+    this.scene.tweens.add({
+      targets: highlightLine,
+      alpha: 0.5,
+      duration: 300,
+      yoyo: true,
+      onComplete: () => highlightLine.destroy()
+    });
+    
+    // Создаем эффект пульсации для линии
+    const linePulse = this.scene.add.rectangle(
+      isRow ? GRID_X + GRID_SIZE * CELL_SIZE / 2 : startX + CELL_SIZE / 2,
+      isRow ? startY + CELL_SIZE / 2 : GRID_Y + GRID_SIZE * CELL_SIZE / 2,
+      isRow ? GRID_SIZE * CELL_SIZE : CELL_SIZE,
+      isRow ? CELL_SIZE : GRID_SIZE * CELL_SIZE,
+      lineColor,
+      0.2
+    );
+    linePulse.setBlendMode(Phaser.BlendModes.SCREEN);
+    lineEffects.add(linePulse);
+    
+    // Анимация пульсации
+    this.scene.tweens.add({
+      targets: linePulse,
+      alpha: { from: 0.2, to: 0.5 },
+      scale: { from: 1, to: 1.1 },
+      duration: 300,
+      yoyo: true,
+      repeat: 1,
+      onComplete: () => linePulse.destroy()
+    });
+    
+    // Запускаем очистку блоков с эффектом волны
+    const length = isRow ? GRID_SIZE : GRID_SIZE;
+    const mid = Math.floor(length / 2);
+    
+    // Блоки исчезают от центра к краям
+    for (let i = 0; i < length; i++) {
+      // Рассчитываем позицию от центра к краям
+      const distFromCenter = Math.abs(i - mid);
+      const delay = distFromCenter * delayPerBlock;
+      
+      // Координаты блока
+      const x = isRow ? i : coords[0];
+      const y = isRow ? coords[0] : i;
+      
+      // Запускаем анимацию с задержкой
+      this.scene.time.delayedCall(delay, () => {
+        this.animateBlockClear(x, y);
+      });
+    }
+  }
+
+  /**
+   * Анимирует очистку нескольких линий (вызывается из GameScene)
+   */
+  public animateLinesClear(rows: number[], cols: number[]): void {
+    // Анимируем очистку всех рядов
+    rows.forEach((row, index) => {
+      this.scene.time.delayedCall(index * 100, () => {
+        this.animateLineClear([row], true);
+      });
+    });
+    
+    // Анимируем очистку всех столбцов с небольшой задержкой после рядов
+    cols.forEach((col, index) => {
+      this.scene.time.delayedCall(rows.length * 100 + index * 100, () => {
+        this.animateLineClear([col], false);
+      });
+    });
   }
 
   /**
@@ -237,64 +449,127 @@ export class GridComponent {
 
     const originalColor = block.fillColor;
     
+    // Удаляем существующие эффекты
     if (block.data && block.data.has('effects')) {
       const effects = block.data.get('effects');
       effects.forEach((effect: Phaser.GameObjects.GameObject) => effect.destroy());
     }
 
+    // 1. Сначала увеличим блок перед исчезновением для эффекта "взрыва"
     this.scene.tweens.add({
       targets: block,
-      alpha: 0,
-      scaleX: 0,
-      scaleY: 0,
-      duration: 180,
-      ease: 'Back.easeIn',
+      scaleX: 1.3,
+      scaleY: 1.3,
+      duration: 100,
+      ease: 'Sine.easeOut',
       onComplete: () => {
-        block.setAlpha(1).setScale(1, 1).setFillStyle(0x000000, 0);
+        // 2. Затем уменьшаем и исчезаем
+        this.scene.tweens.add({
+          targets: block,
+          alpha: 0,
+          scaleX: 0,
+          scaleY: 0,
+          duration: 200,
+          ease: 'Back.easeIn',
+          onComplete: () => {
+            block.setAlpha(1).setScale(1, 1).setFillStyle(0x000000, 0);
+          }
+        });
       }
     });
 
+    // 3. Яркая вспышка при исчезновении
     const flash = this.scene.add.rectangle(
       block.x,
       block.y,
       block.width * 1.5,
       block.height * 1.5,
       0xffffff,
-      0.8
+      0.7
     );
     flash.setDepth(block.depth + 1);
+    flash.setBlendMode(Phaser.BlendModes.SCREEN);
     
     this.scene.tweens.add({
       targets: flash,
-      alpha: 0,
-      scale: 2,
-      duration: 200,
+      alpha: { from: 0.7, to: 0 },
+      scale: { from: 1, to: 2 },
+      duration: 250,
+      ease: 'Sine.easeOut',
       onComplete: () => flash.destroy()
     });
 
-    const emitter = this.scene.add.particles(
+    // 4. Свечение вокруг блока
+    const glow = this.scene.add.rectangle(
       block.x,
       block.y,
-      'pixel',
-      {
-        speed: { min: 50, max: 200 },
-        angle: { min: 0, max: 360 },
-        scale: { start: 0.8, end: 0 },
-        lifespan: 800,
-        tint: [originalColor, 0xffffff],
-        blendMode: 'ADD',
-        emitting: true
-      }
+      block.width * 1.8,
+      block.height * 1.8,
+      originalColor,
+      0.4
     );
-
-    this.scene.time.delayedCall(250, () => {
-      emitter.stop();
-      this.scene.time.delayedCall(150, () => {
-        emitter.destroy();
-      });
+    glow.setDepth(block.depth);
+    glow.setBlendMode(Phaser.BlendModes.ADD);
+    
+    this.scene.tweens.add({
+      targets: glow,
+      alpha: 0,
+      scale: 2,
+      duration: 300,
+      ease: 'Sine.easeOut',
+      onComplete: () => glow.destroy()
     });
-  }
 
+    // 5. Система частиц для эффекта "взрыва"
+    if (this.scene.textures.exists('pixel')) {
+      const emitter = this.scene.add.particles(
+        block.x,
+        block.y,
+        'pixel',
+        {
+          speed: { min: 80, max: 220 },
+          angle: { min: 0, max: 360 },
+          scale: { start: 1.2, end: 0 },
+          lifespan: 600,
+          quantity: 10,
+          frequency: 30,
+          maxParticles: 20,
+          tint: [originalColor, 0xffffff],
+          blendMode: Phaser.BlendModes.SCREEN,
+          emitting: true
+        }
+      );
+      emitter.setDepth(block.depth + 2);
+
+      // Быстрее останавливаем эмиттер
+      this.scene.time.delayedCall(150, () => {
+        emitter.stop();
+        this.scene.time.delayedCall(500, () => {
+          emitter.destroy();
+        });
+      });
+    }
+
+    // 6. Добавляем звездочки
+    for (let i = 0; i < 2; i++) {
+      const size = Phaser.Math.Between(4, 7);
+      const star = this.scene.add.star(block.x, block.y, 5, size / 2, size, originalColor);
+      star.setAlpha(0.8);
+      star.setDepth(block.depth + 3);
+      star.setBlendMode(Phaser.BlendModes.SCREEN);
+      
+      this.scene.tweens.add({
+        targets: star,
+        x: block.x + Phaser.Math.Between(-70, 70),
+        y: block.y + Phaser.Math.Between(-70, 70),
+        angle: Phaser.Math.Between(0, 360),
+        alpha: 0,
+        duration: Phaser.Math.Between(300, 600),
+        ease: 'Cubic.easeOut',
+        onComplete: () => star.destroy()
+      });
+    }
+  }
   public destroy(): void {
     this.graphics.destroy();
     this.blocks.forEach(row => row.forEach(block => block.destroy()));
