@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
-import { GameScene } from '../GameScene';
-import { GridPosition } from '../../types';
-import { GRID_X, GRID_Y, GRID_SIZE, CELL_SIZE } from '../../config';
+import { GameScene } from '../scenes/GameScene';
+import { GridPosition } from '../core/types';
+import { GRID_X, GRID_Y, GRID_SIZE, CELL_SIZE } from '../config';
 
 export class GameSceneInputHandler {
     private scene: GameScene;

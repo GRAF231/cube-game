@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
-import { Cell, GridPosition, Shape } from '../types';
-import { GRID_SIZE, CELL_SIZE, GRID_X, GRID_Y, COLORS } from '../config';
-import { GridAnimations } from './GridAnimations';
+import { Cell, GridPosition, Shape } from '../../types';
+import { GRID_SIZE, CELL_SIZE, GRID_X, GRID_Y, COLORS } from '../../config';
+import { GridAnimations } from '../../components/GridAnimations';
 
 /**
  * Класс GridComponent отвечает за управление игровой сеткой

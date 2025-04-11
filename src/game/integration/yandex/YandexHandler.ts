@@ -1,4 +1,4 @@
-import { GameScene } from '../GameScene';
+import { GameScene } from '../../scenes/GameScene';
 
 export class GameSceneYandexHandler {
     private scene: GameScene;

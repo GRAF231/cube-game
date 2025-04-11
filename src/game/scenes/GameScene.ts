@@ -1,13 +1,13 @@
 import Phaser from 'phaser';
 import { BaseScene } from './BaseScene';
-import { GameManager } from '../GameManager';
-import { Shape, GameEvents, GridPosition } from '../types';
-import { GameSceneUIManager } from './ui/GameSceneUIManager';
-import { GameSceneInputHandler } from './input/GameSceneInputHandler';
-import { GameSceneAnimator } from './animation/GameSceneAnimator';
-import { GameSceneYandexHandler } from './sdk/GameSceneYandexHandler';
-import { GameSceneBackground } from './background/GameSceneBackground';
-import { GameSceneGridHandler } from './grid/GameSceneGridHandler';
+import { GameManager } from '../core/state/GameManager';
+import { Shape, GameEvents, GridPosition } from '../core/types';
+import { GameSceneUIManager } from '../ui/managers/UIManager';
+import { GameSceneInputHandler } from '../input/InputHandler';
+import { GameSceneAnimator } from '../ui/animation/Animator';
+import { GameSceneYandexHandler } from '../integration/yandex/YandexHandler';
+import { GameSceneBackground } from '../ui/effects/Background';
+import { GameSceneGridHandler } from '../input/GridHandler';
 
 export class GameScene extends BaseScene {
     private gameManager!: GameManager;

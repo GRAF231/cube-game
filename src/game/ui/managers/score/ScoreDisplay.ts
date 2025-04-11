@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLORS, GAME_WIDTH } from '../../../config';
-import { GameScene } from '../../GameScene';
+import { GameScene } from '../../../scenes/GameScene';
 
 /**
  * Класс для управления отображением счета и комбо

@@ -1,5 +1,5 @@
-import { ClearResult, GridPosition } from '../types';
-import { GRID_SIZE } from '../config';
+import { ClearResult, GridPosition } from '../types/game-types';
+import { GRID_SIZE } from '../../config';
 
 /**
  * Класс для управления системой очков
@@ -24,6 +24,7 @@ export class ScoreSystem {
 
     /**
      * Обновить счет на основе результатов очистки
+     * @returns количество заработанных очков
      */
     public updateScore(clearResult: ClearResult): number {
         const basePoints = clearResult.cellsCleared * 10;

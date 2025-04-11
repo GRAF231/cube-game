@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
-import { Shape, GridPosition } from '../../types';
-import { COLORS, GRID_SIZE, CELL_SIZE, GRID_X, GRID_Y } from '../../config';
-import { GameManager } from '../../GameManager';
-import { GameSceneAnimator } from '../animation/GameSceneAnimator';
-import { GameScene } from '../GameScene';
+import { Shape, GridPosition } from '../core/types';
+import { COLORS, GRID_SIZE, CELL_SIZE, GRID_X, GRID_Y } from '../config';
+import { GameManager } from '../core/state/GameManager';
+import { GameSceneAnimator } from '../ui/animation/Animator';
+import { GameScene } from '../scenes/GameScene';
 
 /**
  * Класс для управления отображением фигур, их размещением и взаимодействием с сеткой

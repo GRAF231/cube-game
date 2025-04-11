@@ -1,4 +1,5 @@
-import { Shape, ShapeType, GridPosition } from './types';
+import { GridPosition } from '../types/game-types';
+import { Shape, ShapeType } from '../types/shape-types';
 
 /**
  * Класс, отвечающий за генерацию игровых фигур

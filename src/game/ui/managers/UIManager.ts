@@ -1,12 +1,12 @@
 import Phaser from 'phaser';
-import { GridComponent } from '../../components/GridComponent';
+import { GridComponent } from '../components/GridComponent';
 import { Shape } from '../../types';
 import { COLORS, GRID_SIZE, CELL_SIZE, GRID_X, GRID_Y, GAME_WIDTH } from '../../config';
-import { GameSceneAnimator } from '../animation/GameSceneAnimator';
-import { GameScene } from '../GameScene';
-import { GameSceneUIBackground } from './background/GameSceneUIBackground';
-import { GameSceneUIScoreDisplay } from './score/GameSceneUIScoreDisplay';
-import { GameSceneUIShapePreview } from './preview/GameSceneUIShapePreview';
+import { GameSceneAnimator } from '../animation/Animator';
+import { GameScene } from '../../scenes/GameScene';
+import { GameSceneUIBackground } from './background/UIBackground';
+import { GameSceneUIScoreDisplay } from './score/ScoreDisplay';
+import { GameSceneUIShapePreview } from './preview/ShapePreview';
 
 export class GameSceneUIManager {
     private scene: GameScene;

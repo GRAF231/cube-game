@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
 import { COLORS, GAME_HEIGHT, GRID_Y } from '../../../config';
-import { Shape } from '../../../types';
-import { GameScene } from '../../GameScene';
-import { ShapeGenerator } from '../../../ShapeGenerator';
+import { Shape } from '../../../core/types';
+import { GameScene } from '../../../scenes/GameScene';
+import { ShapeGenerator } from '../../../core/logic/ShapeGenerator';
 
 /**
  * Класс для управления отображением и анимацией предпросмотра фигур

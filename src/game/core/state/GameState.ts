@@ -1,8 +1,11 @@
-import { Cell, Shape, GameState } from '../types';
-import { GRID_SIZE } from '../config';
+import { Cell, GridPosition } from '../types/game-types';
+import { Shape } from '../types/shape-types';
+import { GameState } from '../types/state-types';
+import { GRID_SIZE } from '../../config';
+import { StateUtils } from '../../../utils/StateUtils';
 
 /**
- * Класс для управления состоянием игры
+ * Класс для управления состоянием игры с использованием иммутабельного подхода
  */
 export class GameStateManager {
     private state: GameState;
@@ -15,13 +18,13 @@ export class GameStateManager {
      * Инициализирует начальное состояние игры
      */
     private getInitialState(): GameState {
-        const grid: Cell[][] = [];
-        for (let y = 0; y < GRID_SIZE; y++) {
-            grid[y] = [];
-            for (let x = 0; x < GRID_SIZE; x++) {
-                grid[y][x] = { filled: false, color: '' };
-            }
-        }
+        const grid: Cell[][] = Array(GRID_SIZE)
+            .fill(null)
+            .map(() =>
+                Array(GRID_SIZE)
+                    .fill(null)
+                    .map(() => ({ filled: false, color: '' }))
+            );
 
         return {
             score: 0,
@@ -30,6 +33,7 @@ export class GameStateManager {
             grid,
             availableShapes: [],
             selectedShape: null,
+            gridBeforeClear: undefined,
         };
     }
 
@@ -41,45 +45,52 @@ export class GameStateManager {
     }
 
     /**
+     * Обновить все состояние игры
+     */
+    public updateState(newState: Partial<GameState>): void {
+        this.state = StateUtils.update(this.state, newState);
+    }
+
+    /**
      * Обновить состояние сетки
      */
     public updateGrid(grid: Cell[][]): void {
-        this.state.grid = grid;
+        this.state = StateUtils.update(this.state, { grid });
     }
 
     /**
      * Обновить доступные фигуры
      */
     public updateShapes(shapes: (Shape | null)[]): void {
-        this.state.availableShapes = shapes;
+        this.state = StateUtils.update(this.state, { availableShapes: shapes });
     }
 
     /**
      * Выбрать фигуру
      */
     public selectShape(shape: Shape | null): void {
-        this.state.selectedShape = shape;
+        this.state = StateUtils.update(this.state, { selectedShape: shape });
     }
 
     /**
      * Обновить счет
      */
     public updateScore(score: number): void {
-        this.state.score = score;
+        this.state = StateUtils.update(this.state, { score });
     }
 
     /**
      * Обновить комбо
      */
     public updateCombo(combo: number): void {
-        this.state.combo = combo;
+        this.state = StateUtils.update(this.state, { combo });
     }
 
     /**
      * Установить флаг окончания игры
      */
     public setGameOver(isGameOver: boolean): void {
-        this.state.isGameOver = isGameOver;
+        this.state = StateUtils.update(this.state, { isGameOver });
     }
 
     /**

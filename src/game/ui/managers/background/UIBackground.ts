@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLORS, GAME_WIDTH, GAME_HEIGHT } from '../../../config';
-import { GameScene } from '../../GameScene';
+import { GameScene } from '../../../scenes/GameScene';
 
 /**
  * Класс для управления фоновыми элементами пользовательского интерфейса
