@@ -13,7 +13,7 @@ export class GameScene extends BaseScene {
     private gameManager!: GameManager;
     public uiManager!: GameSceneUIManager;
     private inputHandler!: GameSceneInputHandler;
-    private animator!: GameSceneAnimator;
+    public animator!: GameSceneAnimator;
     private yandexHandler!: GameSceneYandexHandler;
     private background!: GameSceneBackground;
     private gridHandler!: GameSceneGridHandler;

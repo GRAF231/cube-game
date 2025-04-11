@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
-import { COLORS, GAME_HEIGHT } from '../../../config';
+import { COLORS, GAME_HEIGHT, GRID_Y } from '../../../config';
 import { Shape } from '../../../types';
 import { GameScene } from '../../GameScene';
+import { ShapeGenerator } from '../../../ShapeGenerator';
 
 /**
  * Класс для управления отображением и анимацией предпросмотра фигур
@@ -9,117 +10,186 @@ import { GameScene } from '../../GameScene';
 export class GameSceneUIShapePreview {
     private scene: GameScene;
     private shapePreviews: Phaser.GameObjects.Container[] = [];
-    private previewConfigs: {
-        width: number;
-        height: number;
-        x: number;
-        y: number;
-        spacing: number;
-    };
 
     constructor(scene: GameScene) {
         this.scene = scene;
-
-        // Параметры области предпросмотра
-        this.previewConfigs = {
-            width: 80,
-            height: 80,
-            x: 40,
-            y: GAME_HEIGHT - 100,
-            spacing: 100,
-        };
     }
 
     /**
      * Создает область для предпросмотра фигур
      */
     public createShapePreviewArea(): void {
-        // Создаем контейнеры для фигур (всего 3)
+        const previewTitle = this.scene.add.text(20, GRID_Y - 40, 'Фигуры', {
+            fontFamily: '"Russo One", "Exo 2", sans-serif',
+            fontSize: '22px',
+            color: '#ffffff',
+            fontStyle: 'bold',
+            stroke: '#00ffe7',
+            strokeThickness: 1,
+        });
+
+        const titleGlow = this.scene.add.rectangle(
+            previewTitle.x + previewTitle.width / 2,
+            previewTitle.y + previewTitle.height / 2,
+            previewTitle.width + 20,
+            previewTitle.height + 10,
+            0x00ffe7,
+            0.15
+        );
+        titleGlow.setDepth(previewTitle.depth - 1);
+
+        this.scene.tweens.add({
+            targets: titleGlow,
+            alpha: { from: 0.15, to: 0.3 },
+            scale: { from: 1, to: 1.05 },
+            duration: 1500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut',
+        });
+
+        const previewWidth = 110;
+        const previewHeight = 110;
+        const padding = 15;
+        const startX = 20;
+        const startY = GRID_Y + 20;
+
+        const previewPanelHeight = 3 * (previewHeight + padding) + padding;
+        const previewPanel = this.scene.add
+            .rectangle(
+                startX - 10,
+                startY - 10,
+                previewWidth + 20,
+                previewPanelHeight,
+                Phaser.Display.Color.HexStringToColor(COLORS.background).color,
+                0.5
+            )
+            .setOrigin(0);
+
+        previewPanel.setStrokeStyle(
+            2,
+            Phaser.Display.Color.HexStringToColor(COLORS.previewBorder).color,
+            0.7
+        );
+
+        const panelGlow = this.scene.add
+            .rectangle(startX - 10, startY - 10, previewWidth + 20, previewPanelHeight, 0xffffff, 0)
+            .setOrigin(0);
+        panelGlow.setStrokeStyle(
+            8,
+            Phaser.Display.Color.HexStringToColor(COLORS.previewBorder).color,
+            0.15
+        );
+
+        this.scene.tweens.add({
+            targets: panelGlow,
+            alpha: { from: 0, to: 0.2 },
+            duration: 2000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut',
+        });
+
         for (let i = 0; i < 3; i++) {
-            const previewX = this.previewConfigs.x + i * this.previewConfigs.spacing;
-            const previewY = this.previewConfigs.y;
-            const previewWidth = this.previewConfigs.width;
-            const previewHeight = this.previewConfigs.height;
+            const y = startY + i * (previewHeight + padding);
 
-            // Контейнер для каждой фигуры
-            const shapeContainer = this.scene.add.container(previewX, previewY);
-            shapeContainer.setData('index', i);
-            shapeContainer.setData('initialX', previewX);
-            shapeContainer.setData('initialY', previewY);
-            shapeContainer.setSize(previewWidth, previewHeight);
-            shapeContainer.setInteractive();
-            this.shapePreviews.push(shapeContainer);
+            // Убираем номера слотов по просьбе пользователя
 
-            // Сохраняем ссылки на фоновые элементы для последующего обновления
-            const backgrounds: Phaser.GameObjects.GameObject[] = [];
+            // Вычисляем центр блока превью
+            const centerX = startX + previewWidth / 2;
+            const centerY = y + previewHeight / 2;
 
-            // Создаем контейнер для фона - с учетом нового центрированного дизайна
-            const backgroundContainer = this.scene.add.container(0, 0);
-            shapeContainer.add(backgroundContainer);
-
-            // Фон для предпросмотра фигуры с увеличенной прозрачностью для лучшего эффекта
-            const background = this.scene.add
+            // Создаем фон для превью с rounded corners (используем центрированное положение)
+            const baseBg = this.scene.add
                 .rectangle(
-                    0,
-                    0,
+                    centerX,
+                    centerY,
                     previewWidth,
                     previewHeight,
                     Phaser.Display.Color.HexStringToColor(COLORS.previewBackground).color,
-                    0.4
+                    0.9
+                )
+                .setOrigin(0.5); // Используем одинаковую точку привязки для всех элементов
+
+            // Добавляем градиент сверху
+            const topGradient = this.scene.add
+                .rectangle(
+                    centerX,
+                    centerY - previewHeight * 0.2, // Смещаем выше центра для эффекта градиента
+                    previewWidth,
+                    previewHeight * 0.6,
+                    0xffffff,
+                    0.1
                 )
                 .setOrigin(0.5);
-            backgroundContainer.add(background);
-            backgrounds.push(background);
-
-            // Добавляем внутреннюю подсветку для фона
-            const innerGlow = this.scene.add
-                .rectangle(0, 0, previewWidth * 0.8, previewHeight * 0.6, 0xffffff, 0.1)
-                .setOrigin(0.5);
-            backgroundContainer.add(innerGlow);
-            backgrounds.push(innerGlow);
 
             // Создаем маску для закругленных углов, учитывая новое центрированное позиционирование
             const shapeMask = this.scene.make.graphics({});
             shapeMask.fillStyle(0xffffff);
             // Рассчитываем координаты для левого верхнего угла с учетом центрированных элементов
             shapeMask.fillRoundedRect(
-                -previewWidth / 2,
-                -previewHeight / 2,
+                centerX - previewWidth / 2,
+                centerY - previewHeight / 2,
                 previewWidth,
                 previewHeight,
-                10
+                12
             );
             const mask = shapeMask.createGeometryMask();
-            backgroundContainer.setMask(mask);
-            backgrounds.push(shapeMask);
+            baseBg.setMask(mask);
+            topGradient.setMask(mask);
 
-            // Добавляем внешнюю подсветку/ауру
-            const glow = this.scene.add
+            // Добавляем красивую обводку с неоновым эффектом - с корректировкой позиции вниз
+            const border = this.scene.add
                 .rectangle(
-                    0,
-                    0,
-                    previewWidth + 10,
-                    previewHeight + 10,
-                    Phaser.Display.Color.HexStringToColor(COLORS.previewBorder).color,
-                    0.2
+                    centerX,
+                    centerY + 4, // Добавляем смещение вниз на 4 пикселя
+                    previewWidth,
+                    previewHeight,
+                    0x000000,
+                    0
                 )
                 .setOrigin(0.5);
-            backgroundContainer.add(glow);
-            backgroundContainer.sendToBack(glow);
-            backgrounds.push(glow);
+            border.setStrokeStyle(
+                2.5,
+                Phaser.Display.Color.HexStringToColor(COLORS.previewBorder).color,
+                0.8
+            );
 
-            // Анимация для подсветки
+            // Добавляем внешнее свечение - с той же корректировкой
+            const glow = this.scene.add
+                .rectangle(
+                    centerX,
+                    centerY + 4, // Такое же смещение вниз на 4 пикселя
+                    previewWidth + 10,
+                    previewHeight + 10,
+                    0xffffff,
+                    0
+                )
+                .setOrigin(0.5);
+            glow.setStrokeStyle(
+                8,
+                Phaser.Display.Color.HexStringToColor(COLORS.previewBorder).color,
+                0.15
+            );
+
+            // Анимация пульсации свечения
             this.scene.tweens.add({
-                targets: [glow, innerGlow],
-                alpha: { from: glow.alpha, to: glow.alpha * 2 },
+                targets: glow,
+                alpha: { from: 0, to: 0.3 },
                 duration: 1500 + i * 200,
                 yoyo: true,
                 repeat: -1,
                 ease: 'Sine.easeInOut',
             });
 
-            // Сохраняем ссылки на фоновые элементы
-            shapeContainer.setData('background', backgrounds);
+            // Создаем контейнер для всех элементов слота
+            const container = this.scene.add.container(startX, y);
+            container.setData('index', i);
+            container.setData('initialX', startX);
+            container.setData('initialY', y);
+            container.setData('background', [baseBg, topGradient, border, glow, mask, shapeMask]);
+
+            this.shapePreviews.push(container);
         }
     }
 
@@ -127,25 +197,25 @@ export class GameSceneUIShapePreview {
      * Обновляет отображение фигур в предпросмотре
      */
     public updateShapePreviews(shapes: (Shape | null)[], withAnimation = true): void {
-        // Очищаем предыдущие фигуры из контейнеров
         this.shapePreviews.forEach(container => {
-            // Удаляем все дочерние элементы, кроме фона
             const childrenToRemove = container
                 .getAll()
                 .filter(child => !child.getData('isBackground'));
             childrenToRemove.forEach(child => child.destroy());
+
+            container.setData('shape', null);
         });
 
-        // Добавляем новые фигуры
         shapes.forEach((shape, index) => {
             if (index < this.shapePreviews.length) {
                 const container = this.shapePreviews[index];
                 if (shape) {
-                    // Рисуем фигуру в контейнере
                     this.drawShapeInPreview(container, shape, withAnimation);
+                    container.setData('shape', shape);
                 }
             }
         });
+        this.resetPreviewPositions();
     }
 
     /**
@@ -156,91 +226,68 @@ export class GameSceneUIShapePreview {
         shape: Shape,
         withAnimation = true
     ): void {
-        // Используем непосредственно блоки из shape
-        const blocks = shape.blocks;
-        const previewScale = 0.8; // Масштаб фигуры внутри контейнера
+        const shapeSize = ShapeGenerator.getShapeSize(shape);
 
-        // Находим размер сетки для фигуры
-        let minX = Number.MAX_SAFE_INTEGER;
-        let minY = Number.MAX_SAFE_INTEGER;
-        let maxX = Number.MIN_SAFE_INTEGER;
-        let maxY = Number.MIN_SAFE_INTEGER;
+        const blockSize = 22;
+        const previewWidth = 110;
+        const previewHeight = 110;
 
-        blocks.forEach((block: { x: number; y: number }) => {
-            minX = Math.min(minX, block.x);
-            minY = Math.min(minY, block.y);
-            maxX = Math.max(maxX, block.x);
-            maxY = Math.max(maxY, block.y);
-        });
+        const dragGroup = this.scene.add.container(previewWidth / 2, previewHeight / 2);
+        container.add(dragGroup);
 
-        const gridWidth = maxX - minX + 1;
-        const gridHeight = maxY - minY + 1;
-        const blockSize = Math.min(
-            (this.previewConfigs.width * previewScale) / gridWidth,
-            (this.previewConfigs.height * previewScale) / gridHeight
-        );
+        const groupOffsetX = -(shapeSize.width * blockSize) / 2;
+        const groupOffsetY = -(shapeSize.height * blockSize) / 2;
 
-        // Центрирование сетки
-        const gridCenterX = 0;
-        const gridCenterY = 0;
-        const gridOffsetX = gridCenterX - ((gridWidth - 1) * blockSize) / 2;
-        const gridOffsetY = gridCenterY - ((gridHeight - 1) * blockSize) / 2;
-
-        // Создаем блоки фигуры
         shape.blocks.forEach(block => {
-            // Позиция блока в контейнере
-            const blockX = gridOffsetX + (block.x - minX) * blockSize;
-            const blockY = gridOffsetY + (block.y - minY) * blockSize;
-
-            // Создаем блок с более интересным визуалом
-            const blockGraphics = this.scene.add.graphics();
-            container.add(blockGraphics);
-
-            // Цвет блока из формы
-            const blockColor = shape.color;
-            const colorValue = Phaser.Display.Color.HexStringToColor(blockColor).color;
-
-            // Отрисовка блока с эффектами объема
-            blockGraphics.fillStyle(colorValue, 1);
-            blockGraphics.fillRect(
-                blockX - blockSize / 2 + 1,
-                blockY - blockSize / 2 + 1,
+            const rect = this.scene.add.rectangle(
+                groupOffsetX + block.x * blockSize + blockSize / 2,
+                groupOffsetY + block.y * blockSize + blockSize / 2,
                 blockSize - 2,
-                blockSize - 2
+                blockSize - 2,
+                Phaser.Display.Color.HexStringToColor(shape.color).color
             );
 
-            // Добавляем световой эффект сверху (блик)
-            blockGraphics.fillStyle(0xffffff, 0.4);
-            blockGraphics.fillRect(
-                blockX - blockSize / 2 + 3,
-                blockY - blockSize / 2 + 3,
-                blockSize - 6,
-                blockSize / 3
+            const highlight = this.scene.add.rectangle(
+                groupOffsetX + block.x * blockSize + blockSize / 2,
+                groupOffsetY + block.y * blockSize + blockSize * 0.3,
+                blockSize * 0.7,
+                blockSize * 0.4,
+                0xffffff,
+                0.3
             );
 
-            // Добавляем тень снизу
-            blockGraphics.fillStyle(0x000000, 0.3);
-            blockGraphics.fillRect(
-                blockX - blockSize / 2 + 3,
-                blockY + blockSize / 2 - blockSize / 3,
-                blockSize - 6,
-                blockSize / 3 - 3
+            const shadow = this.scene.add.rectangle(
+                groupOffsetX + block.x * blockSize + blockSize / 2,
+                groupOffsetY + block.y * blockSize + blockSize * 0.7,
+                blockSize * 0.9,
+                blockSize * 0.4,
+                0x000000,
+                0.2
             );
 
-            // Применяем анимацию появления, если требуется
-            if (withAnimation) {
-                blockGraphics.setAlpha(0);
-                blockGraphics.setScale(0.5);
-                this.scene.tweens.add({
-                    targets: blockGraphics,
-                    alpha: 1,
-                    scale: 1,
-                    ease: 'Back.easeOut',
-                    duration: 200,
-                    delay: 100 * block.x, // Последовательное появление
-                });
-            }
+            const glow = this.scene.add.rectangle(
+                groupOffsetX + block.x * blockSize + blockSize / 2,
+                groupOffsetY + block.y * blockSize + blockSize / 2,
+                blockSize + 4,
+                blockSize + 4,
+                Phaser.Display.Color.HexStringToColor(shape.color).color,
+                0.2
+            );
+            glow.setDepth(-1);
+
+            dragGroup.add([glow, rect, highlight, shadow]);
         });
+
+        const hitArea = this.scene.add.rectangle(0, 0, previewWidth, previewHeight, 0xffffff, 0);
+        hitArea.setDepth(-2);
+        dragGroup.add(hitArea);
+
+        if (withAnimation) {
+            this.scene.animator.animatePreviewAppearance(container, dragGroup, shape);
+        } else {
+            dragGroup.setAlpha(1);
+            dragGroup.setScale(1);
+        }
     }
 
     /**
